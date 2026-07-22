@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# bot.py - V3: 100 ACCOUNT CON GENERAZIONE AUTOMATICA
-# Proxy Manager potenziato con 25 fonti
+# bot.py - Multi-Account con Proxy Fissi (100 proxy)
+# Proxy da ProxyScrape - 3qy2whd9kpkf
 
 import os
 import time
@@ -22,33 +22,132 @@ import io
 # CONFIGURAZIONE
 # ============================================================
 HEADLESS = os.environ.get("HEADLESS", "True").lower() == "true"
-MAX_CONCURRENT = int(os.environ.get("MAX_CONCURRENT", "10"))  # 10 thread in parallelo
-NUM_ACCOUNTS = int(os.environ.get("NUM_ACCOUNTS", "100"))     # 100 account da creare
+MAX_CONCURRENT = int(os.environ.get("MAX_CONCURRENT", "5"))
+NUM_ACCOUNTS = int(os.environ.get("NUM_ACCOUNTS", "100"))
 
 # ============================================================
-# GENERATORE DI ACCOUNT REALISTICI (AUTOMATICO)
+# LISTA PROXY FISSI (DA PROXYSCRAPE)
+# ============================================================
+PROXY_LIST = [
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.180.147:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.238.93:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.253.103:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.163.25:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.168.163:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.172.154:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.176.204:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.224.34:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.54.173:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.226.119:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.41.96:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.34.191:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.236.23:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.254.64:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.167.49:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.37.212:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.32.26:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.22.109:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.226.84:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.225.140:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.32.188:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.234.5:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.35.180:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.232.130:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.31.98:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.175.47:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.44.208:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.243.109:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.42.209:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.163.206:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.167.19.188:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.49.7:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.166.81:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.38.249:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.33.127:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.40.83:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@217.181.90.152:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.20.101:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.3.146:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.241.57:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.52.120:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.33.196:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.46.105:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.178.107:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@217.181.91.242:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.41.74:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@151.123.178.114:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.25.54:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.29.133:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.185.97:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.175.14:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.163.241:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.44.204:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.43.27:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.161.203:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.26.250:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.181.86:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.251.54:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.170.80:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.163.7:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@217.181.90.251:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.46.66:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.34.223:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.167.25.235:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.15.236:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.55.164:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.61.51:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.38.125:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.244.79:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.21.2:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.57.198:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.61.91:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.5.163:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@151.123.176.222:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.10.170:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.59.53:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.61.10:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.38.3:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.13.225:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.56.189:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.191.255:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.54.74:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.250.37:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.56.254:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.46.246:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.42.9:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.52.78:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.43.231:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.253.254:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@65.111.22.176:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.53.100:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@45.3.35.63:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.171.106:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.237.237:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.48.129:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@193.56.28.26:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.49.80:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@104.207.47.70:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@216.26.248.133:3129",
+    "3qy2whd9kpkf:exs0gc9mhv6jag0@209.50.174.237:3129",
+]
+
+# ============================================================
+# GENERATORE DI ACCOUNT REALISTICI
 # ============================================================
 def genera_email_realistica():
-    """Genera un'email realistica (come un utente vero)"""
-    
     nomi = [
         "mario", "luca", "marco", "giuseppe", "antonio", "giovanni", 
         "francesco", "andrea", "alessandro", "roberto", "stefano", 
         "paolo", "simone", "davide", "matteo", "federico", "valentina",
         "chiara", "sara", "elena", "martina", "silvia", "alessia",
-        "sabrina", "paola", "giulia", "francesca", "anna", "laura",
-        "carlo", "alberto", "emanuele", "lorenzo", "riccardo", "daniele",
-        "marzia", "elisabetta", "daniela", "monica", "cristina", "veronica"
+        "sabrina", "paola", "giulia", "francesca", "anna", "laura"
     ]
-    
     cognomi = [
         "rossi", "russo", "ferrari", "esposito", "bianchi", "romano",
         "colombo", "ricci", "marino", "greco", "bruno", "gallo",
         "conti", "de luca", "mancini", "giordano", "rizzo", "lombardi",
-        "barbieri", "fontana", "santoro", "mariani", "conte", "moretti",
-        "gentile", "carboni", "leone", "fabbri", "palmieri", "parisi"
+        "barbieri", "fontana", "santoro", "mariani", "conte", "moretti"
     ]
-    
     domini = ["libero.it", "gmail.com", "outlook.it", "yahoo.it", "tiscali.it"]
     
     nome = random.choice(nomi)
@@ -67,24 +166,19 @@ def genera_email_realistica():
     return random.choice(patterns).lower()
 
 def genera_password_realistica():
-    """Genera una password realistica (come la userebbe un utente vero)"""
-    
     parole = [
         "sole", "luna", "stella", "cielo", "mare", "monte", 
         "fiore", "rosa", "amore", "vita", "pace", "gioia",
         "libertà", "sogno", "cuore", "anima", "falco", "aquila",
-        "tigre", "leone", "lupo", "aquila", "drago", "fenice"
+        "tigre", "leone", "lupo", "drago", "fenice"
     ]
-    
     anni_comuni = ["1985", "1990", "1992", "1995", "2000", "2001", "2002", "2003", "2005"]
     speciali = ['!', '$', '#', '@', '&']
     
-    # Combina: parola + anno + speciale
     parola = random.choice(parole)
     anno = random.choice(anni_comuni)
     speciale = random.choice(speciali)
     
-    # Variazioni: parola+anno, parola+anno+!, parola+!
     pattern = random.choice([
         f"{parola}{anno}",
         f"{parola}{anno}{speciale}",
@@ -94,13 +188,8 @@ def genera_password_realistica():
     
     return pattern
 
-def genera_account(n):
-    """Genera un account con numero progressivo per evitare duplicati"""
+def genera_account():
     email = genera_email_realistica()
-    # Aggiungi un numero per evitare duplicati rari
-    if random.random() < 0.3:
-        base, dominio = email.split('@')
-        email = f"{base}{random.randint(1, 99)}@{dominio}"
     password = genera_password_realistica()
     return {
         "email": email,
@@ -110,198 +199,79 @@ def genera_account(n):
     }
 
 # ============================================================
-# PROXY MANAGER (25 FONTI - INVARIATO)
+# SALVATAGGIO CREDENZIALI
 # ============================================================
-class ProxyManager:
-    def __init__(self):
-        self.proxy_pool = []
-        self.lock = asyncio.Lock()
-        self.bad_proxies = set()
-        self.last_refresh = None
-        
-        self.sources = [
-            "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=5000&country=all",
-            "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=https&timeout=5000&country=all",
-            "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks4&timeout=5000&country=all",
-            "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5&timeout=5000&country=all",
-            "https://raw.githubusercontent.com/shiftytr/proxy-list/master/proxy.txt",
-            "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt",
-            "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks4.txt",
-            "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt",
-            "https://raw.githubusercontent.com/Argh94/Proxy-List/main/http.txt",
-            "https://raw.githubusercontent.com/Ian-Lusule/Proxies/main/proxies/all_proxies.txt",
-            "https://raw.githubusercontent.com/komutan234/Proxy-List-Free/main/proxies/http.txt",
-            "https://free.geonix.com/it/",
-            "https://nodemaven.com/free-proxy-list/",
-            "https://spys.one/en/",
-            "https://litport.net/free-proxy",
-            "https://fineproxy.org/free-proxy/",
-            "https://proxymix.net/freeproxy",
-            "https://www.proxy-list.download/api/v1/get?type=http",
-            "https://www.proxy-list.download/api/v1/get?type=https",
-            "https://www.proxy-list.download/api/v1/get?type=socks4",
-            "https://www.proxy-list.download/api/v1/get?type=socks5",
-            "https://api.openproxylist.xyz/http.txt",
-            "https://api.openproxylist.xyz/socks4.txt",
-            "https://api.openproxylist.xyz/socks5.txt",
-            "https://sockslist.us/Api?request=display&country=all&level=all&token=free",
-        ]
-        
-        self.allowed_types = ['http', 'https']
-    
-    def fetch_roundproxies(self):
-        """Scarica proxy da RoundProxies.com (parsing HTML base)"""
-        url = "https://roundproxies.com/free-proxy-list/"
-        proxies = []
-        try:
-            resp = requests.get(url, timeout=15)
-            matches = re.findall(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+)', resp.text)
-            for match in matches[:1000]:
-                proxy = match.strip()
-                if proxy.count(':') == 1 and proxy not in self.bad_proxies:
-                    proxies.append(proxy)
-            print(f"✅ RoundProxies: {len(proxies)} proxy")
-        except Exception as e:
-            print(f"⚠️ Errore RoundProxies: {e}")
-        return proxies
-    
-    def fetch_sockslist(self):
-        """Scarica proxy da SocksList.us via API"""
-        url = "https://sockslist.us/Api?request=display&country=all&level=all&token=free"
-        proxies = []
-        try:
-            resp = requests.get(url, timeout=10)
-            data = resp.json()
-            for entry in data:
-                proxy = f"{entry['ip']}:{entry['port']}"
-                if proxy.count(':') == 1 and proxy not in self.bad_proxies:
-                    proxies.append(proxy)
-            print(f"✅ SocksList: {len(proxies)} proxy")
-        except Exception as e:
-            print(f"⚠️ Errore SocksList: {e}")
-        return proxies
-    
-    def fetch_proxies_sync(self):
-        """Scarica proxy da TUTTE le fonti"""
-        all_proxies = []
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Scaricamento proxy da {len(self.sources)} fonti...")
-        
-        for idx, url in enumerate(self.sources):
-            try:
-                print(f"   📥 Fonte {idx+1}/{len(self.sources)}...", end=" ")
-                resp = requests.get(url, timeout=15)
-                proxies_found = 0
-                for line in resp.text.strip().splitlines():
-                    if ':' in line:
-                        proxy = line.strip()
-                        if proxy.count(':') == 1 and proxy not in self.bad_proxies:
-                            proxy_type = 'http'
-                            if 'socks4' in url or 'socks4' in line.lower():
-                                proxy_type = 'socks4'
-                            elif 'socks5' in url or 'socks5' in line.lower():
-                                proxy_type = 'socks5'
-                            elif 'https' in url or ':443' in proxy:
-                                proxy_type = 'https'
-                            
-                            if proxy_type in self.allowed_types:
-                                all_proxies.append(proxy)
-                                proxies_found += 1
-                print(f"✅ {proxies_found} proxy")
-            except Exception as e:
-                print(f"❌ Errore: {e}")
-        
-        all_proxies.extend(self.fetch_roundproxies())
-        all_proxies.extend(self.fetch_sockslist())
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] 📋 Totale proxy scaricati: {len(all_proxies)}")
-        return all_proxies
-    
-    def test_proxy_sync(self, proxy):
-        """Testa un proxy (HTTP e HTTPS)"""
-        proxy_url = f"http://{proxy}"
-        proxies = {"http": proxy_url, "https": proxy_url}
-        try:
-            start = time.time()
-            resp_http = requests.get("http://ip-api.com/json", proxies=proxies, timeout=5)
-            if resp_http.status_code != 200:
-                return False, 0, "", ""
-            delay = int((time.time() - start) * 1000)
-            data = resp_http.json()
-            try:
-                resp_https = requests.get("https://api.ipify.org?format=json", proxies=proxies, timeout=5)
-                if resp_https.status_code != 200:
-                    return False, 0, "", ""
-            except:
-                return False, 0, "", ""
-            return True, delay, data.get("query", ""), data.get("countryCode", "")
-        except:
-            return False, 0, "", ""
-    
-    async def get_proxy(self):
-        """Ottiene un proxy funzionante"""
-        async with self.lock:
-            if not self.proxy_pool:
-                self.refresh_pool_sync()
-            while self.proxy_pool:
-                proxy = self.proxy_pool.pop(0)
-                if proxy['proxy'] not in self.bad_proxies:
-                    ok, delay, ip, country = self.test_proxy_sync(proxy['proxy'])
-                    if ok:
-                        proxy['delay'] = delay
-                        proxy['ip'] = ip
-                        proxy['country'] = country
-                        return proxy
-                    else:
-                        self.bad_proxies.add(proxy['proxy'])
-                        print(f"🗑️ Proxy {proxy['proxy']} fallito al test, scartato")
-            self.refresh_pool_sync()
-            if self.proxy_pool:
-                return self.proxy_pool.pop(0)
-            return None
-    
-    def refresh_pool_sync(self, limit=25):
-        """Aggiorna il pool con proxy testati"""
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] 🔄 Aggiornamento pool proxy...")
-        raw_proxies = self.fetch_proxies_sync()
-        if not raw_proxies:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] ❌ Nessun proxy scaricato!")
-            return []
-        random.shuffle(raw_proxies)
-        good_proxies = []
-        tested = 0
-        max_to_test = min(len(raw_proxies), 200)
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] 🧪 Testo {max_to_test} proxy...")
-        for proxy in raw_proxies[:max_to_test]:
-            tested += 1
-            ok, delay, ip, country = self.test_proxy_sync(proxy)
-            if ok:
-                good_proxies.append({
-                    "proxy": proxy,
-                    "delay": delay,
-                    "ip": ip,
-                    "country": country
-                })
-                if len(good_proxies) >= limit:
-                    break
-            if tested % 20 == 0:
-                print(f"   Testati {tested}/{max_to_test} proxy...")
-        good_proxies.sort(key=lambda x: x['delay'])
-        self.proxy_pool = good_proxies
-        self.last_refresh = datetime.now()
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Proxy funzionanti: {len(good_proxies)}")
-        if good_proxies:
-            print(f"   🔥 Miglior proxy: {good_proxies[0]['proxy']} ({good_proxies[0]['delay']}ms) - {good_proxies[0].get('country', '')}")
-        return good_proxies
-    
-    def mark_bad(self, proxy):
-        """Segna un proxy come cattivo"""
-        self.bad_proxies.add(proxy)
-        self.proxy_pool = [p for p in self.proxy_pool if p['proxy'] != proxy]
-        print(f"🗑️ Proxy {proxy} segnato come cattivo")
+def salva_credenziali(accounts, filename="accounts_created.txt"):
+    try:
+        with open(filename, "w") as f:
+            f.write("="*60 + "\n")
+            f.write("📋 CREDENZIALI ACCOUNT CREATI\n")
+            f.write(f"📅 Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write("="*60 + "\n\n")
+            for i, acc in enumerate(accounts, 1):
+                f.write(f"{i}. {acc['email']} : {acc['password']}\n")
+        print(f"💾 Credenziali salvate in {filename}")
+        return True
+    except Exception as e:
+        print(f"⚠️ Errore salvataggio: {e}")
+        return False
 
 # ============================================================
-# PROXY MANAGER GLOBALE
+# PROXY ROTATOR
 # ============================================================
-proxy_manager = ProxyManager()
+class ProxyRotator:
+    def __init__(self, proxy_list):
+        self.proxy_list = proxy_list
+        self.current_index = 0
+        self.lock = asyncio.Lock()
+    
+    def parse_proxy(self, proxy_string):
+        """Parsea un proxy nel formato username:password@host:port"""
+        try:
+            auth, host = proxy_string.split('@')
+            username, password = auth.split(':')
+            host_parts = host.split(':')
+            if len(host_parts) == 2:
+                hostname, port = host_parts
+                return {
+                    "server": f"http://{hostname}:{port}",
+                    "username": username,
+                    "password": password,
+                    "host": hostname,
+                    "port": int(port),
+                    "string": proxy_string
+                }
+        except:
+            return None
+    
+    async def get_proxy(self):
+        """Ottiene il prossimo proxy in rotazione"""
+        async with self.lock:
+            if not self.proxy_list:
+                return None
+            
+            proxy_string = self.proxy_list[self.current_index]
+            self.current_index = (self.current_index + 1) % len(self.proxy_list)
+            
+            proxy = self.parse_proxy(proxy_string)
+            if proxy:
+                print(f"🌐 Proxy: {proxy['host']}:{proxy['port']}")
+                return proxy
+            return None
+    
+    async def mark_bad(self, proxy_string):
+        """Segna un proxy come cattivo (lo rimuove dalla lista)"""
+        async with self.lock:
+            if proxy_string in self.proxy_list:
+                self.proxy_list.remove(proxy_string)
+                if len(self.proxy_list) > 0:
+                    self.current_index = self.current_index % len(self.proxy_list)
+                print(f"🗑️ Proxy {proxy_string} rimosso (cattivo)")
+
+# ============================================================
+# PROXY ROTATOR GLOBALE
+# ============================================================
+proxy_rotator = ProxyRotator(PROXY_LIST)
 
 # ============================================================
 # CARICA DATABASE PHASH
@@ -341,10 +311,9 @@ def pulisci_ad_id(ad_id):
     return ad_id
 
 # ============================================================
-# RISOLUZIONE CAPTCHA (VERSIONE ASYNC)
+# RISOLUZIONE CAPTCHA
 # ============================================================
 async def risolvi_captcha(page, account, phash_db, max_tentativi=5):
-    """Risolvi captcha con tentativi multipli e fallback (async)"""
     for tentativo in range(max_tentativi):
         log(account, f"   🔄 Tentativo captcha {tentativo+1}/{max_tentativi}")
         html = await page.content()
@@ -397,59 +366,73 @@ async def risolvi_captcha(page, account, phash_db, max_tentativi=5):
     return False
 
 # ============================================================
-# CLICCA BOTTONE PTC
+# CLICCA PTC
 # ============================================================
 async def clicca_ptc(page, account):
-    """Cerca e clicca il bottone PTC se presente"""
-    try:
-        selectors = ['#button99', 'input[value="PTC"]', 'input.submit2[value="PTC"]']
-        for selector in selectors:
+    log(account, "🔍 Cerco il bottone PTC...")
+    
+    selectors = [
+        'input[value="PTC"]',
+        '#button99[value="PTC"]',
+        'input.submit2[value="PTC"]',
+        'input[id="button99"][value="PTC"]',
+    ]
+    
+    for selector in selectors:
+        try:
             ptc_button = page.locator(selector)
             count = await ptc_button.count()
             if count > 0:
                 log(account, f"✅ Bottone PTC trovato! (selector: {selector})")
-                await ptc_button.click()
+                await ptc_button.first.click()
                 await asyncio.sleep(2)
                 log(account, "✅ PTC attivato!")
                 return True
-        log(account, "ℹ️ Bottone PTC non trovato (forse già attivo)")
-        return False
+        except Exception as e:
+            log(account, f"   ⚠️ Selector {selector} fallito: {e}")
+    
+    try:
+        all_inputs = page.locator('input')
+        count = await all_inputs.count()
+        for i in range(count):
+            elem = all_inputs.nth(i)
+            value = await elem.get_attribute('value')
+            if value == "PTC":
+                log(account, f"✅ Bottone PTC trovato! (input index: {i})")
+                await elem.click()
+                await asyncio.sleep(2)
+                log(account, "✅ PTC attivato!")
+                return True
     except Exception as e:
-        log(account, f"⚠️ Errore clic PTC: {e}")
-        return False
+        log(account, f"   ⚠️ Ricerca per testo fallita: {e}")
+    
+    log(account, "ℹ️ Bottone PTC non trovato (forse già attivo)")
+    return False
 
 # ============================================================
-# SURF PER UN SINGOLO ACCOUNT (VERSIONE ASYNC)
+# SURF PER UN SINGOLO ACCOUNT
 # ============================================================
 async def surf_account(account):
-    """Esegue il surf per un singolo account (async)"""
     email = account['email']
     password = account['password']
     account_name = email.split('@')[0]
     
     log(account_name, f"🚀 Avvio thread... (Email: {email})")
     
-    max_retry = 3
-    proxy_info = None
-    
-    for attempt in range(max_retry):
-        proxy_info = await proxy_manager.get_proxy()
-        if proxy_info:
-            log(account_name, f"🌐 Proxy: {proxy_info['proxy']} ({proxy_info['delay']}ms) - {proxy_info.get('country', '')}")
-            break
-        else:
-            log(account_name, f"⚠️ Tentativo {attempt+1}/{max_retry}: nessun proxy")
-            proxy_manager.refresh_pool_sync()
-    
+    # 🔥 OTTIENI UN PROXY DAL ROTATOR
+    proxy_info = await proxy_rotator.get_proxy()
     if not proxy_info:
         log(account_name, "❌ Nessun proxy disponibile!")
         return
     
-    proxy_config = {"server": f"http://{proxy_info['proxy']}"}
+    proxy_config = {
+        "server": proxy_info["server"],
+        "username": proxy_info["username"],
+        "password": proxy_info["password"]
+    }
     
     try:
         async with async_playwright() as p:
-            # 🔥 FASE 1: LOGIN CON PROXY
             browser = await p.chromium.launch(
                 headless=HEADLESS,
                 proxy=proxy_config,
@@ -460,7 +443,7 @@ async def surf_account(account):
             page = await context.new_page()
             
             # ============================================================
-            # REGISTRAZIONE/CREAZIONE ACCOUNT
+            # LOGIN/REGISTRAZIONE
             # ============================================================
             log(account_name, "📝 Creazione account...")
             await page.goto("https://antautosurf.com/", wait_until="domcontentloaded", timeout=30000)
@@ -507,7 +490,6 @@ async def surf_account(account):
                     log(account_name, "❌ Captcha non risolto!")
                     return
             
-            # 🔥 CLICCA PTC (SE PRESENTE)
             await clicca_ptc(page, account_name)
             
             log(account_name, "🔄 Ricarico la dashboard...")
@@ -537,7 +519,6 @@ async def surf_account(account):
             for cookie in cookies:
                 cookie_dict[cookie['name']] = cookie['value']
             
-            # 🔥 FASE 2: CHIUDI BROWSER CON PROXY
             await browser.close()
             
             # ============================================================
@@ -677,32 +658,37 @@ async def surf_account(account):
     except Exception as e:
         log(account_name, f"❌ Errore: {e}")
         if "ERR_CONNECTION_RESET" in str(e) or "Timeout" in str(e) or "ERR_TUNNEL" in str(e):
-            proxy_manager.mark_bad(proxy_info['proxy'])
+            await proxy_rotator.mark_bad(proxy_info['string'])
 
 # ============================================================
-# MAIN (VERSIONE ASYNC)
+# MAIN
 # ============================================================
 async def main():
     print("=" * 60)
-    print("🚀 V3 - 100 ACCOUNT CON PROXY MANAGER")
+    print("🚀 ANTPROXY MULTIACCOUNT - PROXY FISSI")
     print(f"🔇 Headless: {HEADLESS}")
     print(f"🔄 Max concurrent: {MAX_CONCURRENT}")
     print(f"📋 Account da creare: {NUM_ACCOUNTS}")
+    print(f"🌐 Proxy disponibili: {len(PROXY_LIST)}")
     print("=" * 60)
     
     phash_db = carica_database()
     print(f"📊 Database phash: {len(phash_db)} hash")
     
-    # 🔥 GENERA 100 ACCOUNT AUTOMATICAMENTE
+    # 🔥 GENERA ACCOUNT AUTOMATICAMENTE
     accounts = []
     print(f"📧 Generazione di {NUM_ACCOUNTS} account...")
     for i in range(NUM_ACCOUNTS):
-        account = genera_account(i)
+        account = genera_account()
         accounts.append(account)
         print(f"   → {i+1}/{NUM_ACCOUNTS}: {account['email']} / {account['password']}")
     
+    # 🔥 SALVA LE CREDENZIALI
+    if accounts:
+        salva_credenziali(accounts)
+    
     print("\n" + "=" * 60)
-    print("🚀 AVVIO THREAD MULTI-ACCOUNT (ASYNC)...")
+    print("🚀 AVVIO THREAD MULTI-ACCOUNT...")
     print("=" * 60)
     
     try:
@@ -710,7 +696,6 @@ async def main():
             tasks = []
             for account in accounts:
                 while len(tasks) >= MAX_CONCURRENT:
-                    # Aspetta che qualche task finisca
                     done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
                     tasks = list(pending)
                 
@@ -720,7 +705,6 @@ async def main():
                 tasks.append(task)
                 await asyncio.sleep(2)
             
-            # Aspetta che tutti i task finiscano
             if tasks:
                 await asyncio.gather(*tasks)
             
