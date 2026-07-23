@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# bot.py - Multi-Account con 200 Proxy Fissi - VERSIONE COMPLETA
+# bot.py - Multi-Account con 200 Proxy Fissi - CON SALVATAGGIO PASSWORD
 
 import os
 import time
@@ -260,7 +260,6 @@ class ProxyRotator:
             return None
     
     async def get_proxy_for_login(self):
-        """Ottiene un proxy per il login (lo consuma)"""
         async with self.lock:
             for i in range(len(self.proxy_list)):
                 proxy_string = self.proxy_list[i]
@@ -274,11 +273,9 @@ class ProxyRotator:
             return None
     
     async def get_proxy_for_surf(self):
-        """Non usa proxy per il surf"""
         return None
     
     async def mark_bad(self, proxy_string):
-        """Segna un proxy come cattivo"""
         async with self.lock:
             if proxy_string in self.used_proxies:
                 self.used_proxies.remove(proxy_string)
@@ -466,51 +463,7 @@ async def risolvi_captcha(page, account, phash_db, max_tentativi=5):
     return False
 
 # ============================================================
-# CLICCA PTC
-# ============================================================
-async def clicca_ptc(page, account):
-    log(account, "🔍 Cerco il bottone PTC...")
-    
-    selectors = [
-        'input[value="PTC"]',
-        '#button99[value="PTC"]',
-        'input.submit2[value="PTC"]',
-        'input[id="button99"][value="PTC"]',
-    ]
-    
-    for selector in selectors:
-        try:
-            ptc_button = page.locator(selector)
-            count = await ptc_button.count()
-            if count > 0:
-                log(account, f"✅ Bottone PTC trovato! (selector: {selector})")
-                await ptc_button.first.click()
-                await asyncio.sleep(2)
-                log(account, "✅ PTC attivato!")
-                return True
-        except Exception as e:
-            log(account, f"   ⚠️ Selector {selector} fallito: {e}")
-    
-    try:
-        all_inputs = page.locator('input')
-        count = await all_inputs.count()
-        for i in range(count):
-            elem = all_inputs.nth(i)
-            value = await elem.get_attribute('value')
-            if value == "PTC":
-                log(account, f"✅ Bottone PTC trovato! (input index: {i})")
-                await elem.click()
-                await asyncio.sleep(2)
-                log(account, "✅ PTC attivato!")
-                return True
-    except Exception as e:
-        log(account, f"   ⚠️ Ricerca per testo fallita: {e}")
-    
-    log(account, "ℹ️ Bottone PTC non trovato (forse già attivo)")
-    return False
-
-# ============================================================
-# SURF PER UN SINGOLO ACCOUNT
+# SURF PER UN SINGOLO ACCOUNT (SENZA PTC)
 # ============================================================
 async def surf_account(account, proxy_rotator):
     email = account['email']
@@ -584,13 +537,12 @@ async def surf_account(account, proxy_rotator):
             await asyncio.sleep(3)
             html = await page.content()
             
+            # 🔥 RISOLVI IL CAPTCHA SE PRESENTE
             if "Please Click Similar" in html:
                 log(account_name, "⚠️ CAPTCHA RILEVATO!")
                 if not await risolvi_captcha(page, account_name, phash_db):
                     log(account_name, "❌ Captcha non risolto!")
                     return
-            
-            await clicca_ptc(page, account_name)
             
             log(account_name, "🔄 Ricarico la dashboard...")
             await page.goto(f"https://antautosurf.com/index.php?bitcoinwallet={email}&ref=", wait_until="networkidle", timeout=60000)
@@ -788,11 +740,19 @@ async def main():
     for i in range(NUM_ACCOUNTS):
         account = genera_account()
         accounts.append(account)
+        # 🔥 STAMPA EMAIL E PASSWORD
         print(f"   → {i+1}/{NUM_ACCOUNTS}: {account['email']} / {account['password']}")
     
     # 🔥 SALVA LE CREDENZIALI
     if accounts:
         salva_credenziali(accounts)
+        print("\n" + "="*60)
+        print("📋 CREDENZIALI ACCOUNT (SALVATE)")
+        print("="*60)
+        for i, acc in enumerate(accounts, 1):
+            print(f"   {i}. {acc['email']} : {acc['password']}")
+        print("="*60)
+        print(f"💾 Salvate in: accounts_created.txt")
     
     print("\n" + "=" * 60)
     print("🚀 AVVIO THREAD MULTI-ACCOUNT...")
