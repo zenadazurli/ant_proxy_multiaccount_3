@@ -333,4 +333,503 @@ def genera_password_realistica():
     speciali = ['!', '$', '#', '@', '&']
     
     parola = random.choice(parole)
-    anno
+    anno = random.choice(anni_comuni)
+    speciale = random.choice(speciali)
+    
+    pattern = random.choice([
+        f"{parola}{anno}",
+        f"{parola}{anno}{speciale}",
+        f"{parola}{speciale}{anno}",
+        f"{parola.capitalize()}{anno}{speciale}",
+    ])
+    
+    return pattern
+
+def genera_account():
+    email = genera_email_realistica()
+    password = genera_password_realistica()
+    return {
+        "email": email,
+        "password": password,
+        "created": False,
+        "balance": 0
+    }
+
+# ============================================================
+# SALVATAGGIO CREDENZIALI
+# ============================================================
+def salva_credenziali(accounts, filename="accounts_created.txt"):
+    try:
+        with open(filename, "w") as f:
+            f.write("="*60 + "\n")
+            f.write("📋 CREDENZIALI ACCOUNT CREATI\n")
+            f.write(f"📅 Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write("="*60 + "\n\n")
+            for i, acc in enumerate(accounts, 1):
+                f.write(f"{i}. {acc['email']} : {acc['password']}\n")
+        print(f"💾 Credenziali salvate in {filename}")
+        return True
+    except Exception as e:
+        print(f"⚠️ Errore salvataggio: {e}")
+        return False
+
+# ============================================================
+# CARICA DATABASE PHASH
+# ============================================================
+def carica_database():
+    try:
+        with open("hash_phash_db.json", "r") as f:
+            return json.load(f)
+    except:
+        return {}
+
+phash_db = carica_database()
+
+# ============================================================
+# LOGGING
+# ============================================================
+def log(account, msg):
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] [{account}] {msg}", flush=True)
+
+# ============================================================
+# FUNZIONI DI PULIZIA
+# ============================================================
+def pulisci_url(url):
+    url = re.sub(r'<[^>]+>', '', url)
+    url = url.strip()
+    url = unquote(url)
+    url = re.sub(r'[<>\'"]', '', url)
+    return url
+
+def pulisci_ad_id(ad_id):
+    ad_id = unquote(ad_id)
+    ad_id = re.sub(r'<[^>]+>', '', ad_id)
+    ad_id = re.sub(r'[<>\'"]', '', ad_id)
+    match = re.search(r'(\d+)', ad_id)
+    if match:
+        return match.group(1)
+    return ad_id
+
+# ============================================================
+# RISOLUZIONE CAPTCHA
+# ============================================================
+async def risolvi_captcha(page, account, phash_db, max_tentativi=5):
+    for tentativo in range(max_tentativi):
+        log(account, f"   🔄 Tentativo captcha {tentativo+1}/{max_tentativi}")
+        html = await page.content()
+        cap_match = re.search(r'capimg\.php\?id=(\d+)', html)
+        if not cap_match:
+            log(account, "   ✅ Nessun captcha rilevato")
+            return True
+        cap_id = cap_match.group(1)
+        cids = [int(x) for x in re.findall(r'cid=(\d+)', html)]
+        cids_unici = list(set(cids))
+        log(account, f"   🖼️ Captcha ID: {cap_id}")
+        log(account, f"   📌 CID disponibili: {cids_unici}")
+        try:
+            img_element = page.locator('img[src*="capimg.php"]')
+            img_data = await img_element.screenshot()
+            img_pil = Image.open(io.BytesIO(img_data))
+            phash = imagehash.phash(img_pil)
+            phash_str = str(phash)
+            log(account, f"   🔑 PHASH: {phash_str}")
+        except Exception as e:
+            log(account, f"   ⚠️ Errore screenshot: {e}")
+            await page.reload()
+            await asyncio.sleep(2)
+            continue
+        for stored_phash, cid in phash_db.items():
+            try:
+                diff = imagehash.hex_to_hash(phash_str) - imagehash.hex_to_hash(stored_phash)
+                if diff <= 10:
+                    await page.goto(f"https://antautosurf.com/index.php?cid={cid}")
+                    await asyncio.sleep(2)
+                    log(account, f"   ✅ CAPTCHA RISOLTO! CID: {cid}")
+                    return True
+            except:
+                pass
+        for cid in cids_unici:
+            log(account, f"   🔄 Provo CID {cid}...")
+            await page.goto(f"https://antautosurf.com/index.php?cid={cid}")
+            await asyncio.sleep(2)
+            html_test = await page.content()
+            if "Please Click Similar" not in html_test:
+                phash_db[phash_str] = cid
+                with open("hash_phash_db.json", "w") as f:
+                    json.dump(phash_db, f, indent=2)
+                log(account, f"   ✅ CAPTCHA RISOLTO! CID: {cid} (nuovo)")
+                return True
+        log(account, f"   ⚠️ Tentativo {tentativo+1} fallito, ricarico...")
+        await page.goto("https://antautosurf.com/index.php", wait_until="domcontentloaded")
+        await asyncio.sleep(3)
+    log(account, f"   ❌ CAPTCHA NON RISOLTO DOPO {max_tentativi} TENTATIVI!")
+    return False
+
+# ============================================================
+# CLICCA PTC
+# ============================================================
+async def clicca_ptc(page, account):
+    log(account, "🔍 Cerco il bottone PTC...")
+    
+    selectors = [
+        'input[value="PTC"]',
+        '#button99[value="PTC"]',
+        'input.submit2[value="PTC"]',
+        'input[id="button99"][value="PTC"]',
+    ]
+    
+    for selector in selectors:
+        try:
+            ptc_button = page.locator(selector)
+            count = await ptc_button.count()
+            if count > 0:
+                log(account, f"✅ Bottone PTC trovato! (selector: {selector})")
+                await ptc_button.first.click()
+                await asyncio.sleep(2)
+                log(account, "✅ PTC attivato!")
+                return True
+        except Exception as e:
+            log(account, f"   ⚠️ Selector {selector} fallito: {e}")
+    
+    try:
+        all_inputs = page.locator('input')
+        count = await all_inputs.count()
+        for i in range(count):
+            elem = all_inputs.nth(i)
+            value = await elem.get_attribute('value')
+            if value == "PTC":
+                log(account, f"✅ Bottone PTC trovato! (input index: {i})")
+                await elem.click()
+                await asyncio.sleep(2)
+                log(account, "✅ PTC attivato!")
+                return True
+    except Exception as e:
+        log(account, f"   ⚠️ Ricerca per testo fallita: {e}")
+    
+    log(account, "ℹ️ Bottone PTC non trovato (forse già attivo)")
+    return False
+
+# ============================================================
+# SURF PER UN SINGOLO ACCOUNT
+# ============================================================
+async def surf_account(account, proxy_rotator):
+    email = account['email']
+    password = account['password']
+    account_name = email.split('@')[0]
+    
+    log(account_name, f"🚀 Avvio thread... (Email: {email})")
+    
+    # 🔥 OTTIENI UN PROXY PER IL LOGIN
+    proxy_info = await proxy_rotator.get_proxy_for_login()
+    if not proxy_info:
+        log(account_name, "❌ Nessun proxy disponibile per il login!")
+        return
+    
+    proxy_config = {
+        "server": proxy_info["server"],
+        "username": proxy_info["username"],
+        "password": proxy_info["password"]
+    }
+    
+    try:
+        async with async_playwright() as p:
+            # ============================================================
+            # BROWSER CON PROXY PER IL LOGIN
+            # ============================================================
+            browser = await p.chromium.launch(
+                headless=HEADLESS,
+                proxy=proxy_config,
+                args=['--disable-blink-features=AutomationControlled']
+            )
+            
+            context = await browser.new_context()
+            page = await context.new_page()
+            
+            log(account_name, "📝 Login/Registrazione...")
+            await page.goto("https://antautosurf.com/", wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(2)
+            
+            await page.fill('input[name="bitcoinwallet"]', email)
+            await page.click('input[type="submit"][value*="Enter"]')
+            await asyncio.sleep(3)
+            
+            html = await page.content()
+            
+            if "Set Login Password" in html:
+                log(account_name, f"📝 Nuovo account: {email}")
+                await page.fill('input[name="password"]', password)
+                await page.fill('input[name="passwordb"]', password)
+                match = re.search(r'name="confirm2" value="(\d+)"', html)
+                if match:
+                    confirm2 = match.group(1)
+                    await page.goto(f"https://antautosurf.com/index.php?password={password}&passwordb={password}&confirm2={confirm2}", wait_until="domcontentloaded", timeout=30000)
+                    await asyncio.sleep(3)
+                    log(account_name, "   ✅ Password impostata!")
+                    account['created'] = True
+            
+            html = await page.content()
+            if "Please enter Password" in html:
+                log(account_name, "🔑 Login con password...")
+                await page.fill('input[name="password"]', password)
+                await page.click('input[value="Enter"]')
+                await asyncio.sleep(3)
+            
+            log(account_name, "✅ Account pronto!")
+            
+            # ============================================================
+            # DASHBOARD CON PROXY
+            # ============================================================
+            log(account_name, "📊 Dashboard...")
+            await page.goto(f"https://antautosurf.com/index.php?bitcoinwallet={email}&ref=", wait_until="domcontentloaded", timeout=60000)
+            await asyncio.sleep(3)
+            html = await page.content()
+            
+            if "Please Click Similar" in html:
+                log(account_name, "⚠️ CAPTCHA RILEVATO!")
+                if not await risolvi_captcha(page, account_name, phash_db):
+                    log(account_name, "❌ Captcha non risolto!")
+                    return
+            
+            await clicca_ptc(page, account_name)
+            
+            log(account_name, "🔄 Ricarico la dashboard...")
+            await page.goto(f"https://antautosurf.com/index.php?bitcoinwallet={email}&ref=", wait_until="networkidle", timeout=60000)
+            await asyncio.sleep(3)
+            html = await page.content()
+            
+            # Balance
+            balance_match = re.search(r'btoday["\']?\s*[=:]\s*([\d.]+)', html)
+            if balance_match:
+                balance = float(balance_match.group(1))
+                account['balance'] = balance
+                log(account_name, f"💰 Balance: {balance}")
+            
+            # CSRF
+            csrf_match = re.search(r'csrf_token=([a-f0-9]+)', html)
+            if not csrf_match:
+                log(account_name, "❌ CSRF non trovato!")
+                return
+            
+            csrf = csrf_match.group(1)
+            log(account_name, f"🎫 CSRF: {csrf[:16]}...")
+            
+            # Cookies
+            cookies = await context.cookies()
+            cookie_dict = {}
+            for cookie in cookies:
+                cookie_dict[cookie['name']] = cookie['value']
+            
+            # ============================================================
+            # CHIUDI BROWSER CON PROXY
+            # ============================================================
+            log(account_name, "🔄 Chiudo browser con proxy...")
+            await browser.close()
+            
+            # ============================================================
+            # SURF SENZA PROXY
+            # ============================================================
+            log(account_name, "🚀 Avvio surf SENZA proxy...")
+            
+            browser_no_proxy = await p.chromium.launch(
+                headless=HEADLESS,
+                args=['--disable-blink-features=AutomationControlled']
+            )
+            
+            context_no_proxy = await browser_no_proxy.new_context()
+            
+            for name, value in cookie_dict.items():
+                await context_no_proxy.add_cookies([{
+                    'name': name,
+                    'value': value,
+                    'domain': '.antautosurf.com',
+                    'path': '/'
+                }])
+            
+            page_no_proxy = await context_no_proxy.new_page()
+            
+            key = ""
+            time_val = 12
+            ad_id = ""
+            cycle = 0
+            csrf_invalidi = 0
+            MAX_CSRF_INVALIDI = 5
+            
+            while True:
+                cycle += 1
+                log(account_name, f"🔄 CICLO {cycle}")
+                
+                if ad_id:
+                    ad_id_pulito = pulisci_ad_id(ad_id)
+                else:
+                    ad_id_pulito = ""
+                
+                params = {
+                    "wallet": email,
+                    "key": key,
+                    "time": time_val,
+                    "ad_id": ad_id_pulito,
+                    "isitbad": 0,
+                    "csrf_token": csrf
+                }
+                
+                url = "https://antautosurf.com/surf.php?" + "&".join([f"{k}={v}" for k, v in params.items()])
+                
+                await page_no_proxy.goto(url, wait_until="domcontentloaded", timeout=30000)
+                page_text = await page_no_proxy.content()
+                
+                if "Invalid CSRF token" in page_text:
+                    csrf_invalidi += 1
+                    log(account_name, f"❌ CSRF invalido! ({csrf_invalidi}/{MAX_CSRF_INVALIDI})")
+                    
+                    if csrf_invalidi >= MAX_CSRF_INVALIDI:
+                        log(account_name, "🔄 Troppi CSRF invalidi! Riavvio...")
+                        return
+                    
+                    await page_no_proxy.goto(f"https://antautosurf.com/index.php?bitcoinwallet={email}&ref=", wait_until="networkidle", timeout=30000)
+                    await asyncio.sleep(2)
+                    html = await page_no_proxy.content()
+                    csrf_match = re.search(r'csrf_token=([a-f0-9]+)', html)
+                    if csrf_match:
+                        csrf = csrf_match.group(1)
+                        csrf_invalidi = 0
+                        log(account_name, f"🎫 Nuovo CSRF: {csrf[:16]}...")
+                    continue
+                else:
+                    csrf_invalidi = 0
+                
+                if "--_--" not in page_text:
+                    await asyncio.sleep(5)
+                    continue
+                
+                parts = page_text.split("--_--")
+                if len(parts) < 4:
+                    continue
+                
+                ad_url = pulisci_url(parts[0])
+                time_val = int(parts[1])
+                key = parts[2]
+                ad_id = parts[3]
+                
+                if "connection.php" in ad_url:
+                    log(account_name, "   📂 Test anti-bot...")
+                    try:
+                        new_page = await context_no_proxy.new_page()
+                        await new_page.goto(ad_url, wait_until="domcontentloaded", timeout=30000)
+                        await asyncio.sleep(2)
+                    except Exception as e:
+                        log(account_name, f"   ⚠️ Errore apertura: {e}")
+                    
+                    for i in range(time_val, 0, -1):
+                        print(f"   ⏳ {i}s", end="\r")
+                        await asyncio.sleep(1)
+                    print("   " * 20, end="\r")
+                    
+                    try:
+                        await new_page.close()
+                    except:
+                        pass
+                    continue
+                
+                log(account_name, f"   📢 Annuncio reale! Timer: {time_val}s")
+                
+                try:
+                    new_page = await context_no_proxy.new_page()
+                    await new_page.goto(ad_url, wait_until="domcontentloaded", timeout=10000)
+                    await asyncio.sleep(1)
+                except Exception as e:
+                    log(account_name, f"   ⚠️ Errore apertura: {e}")
+                
+                for i in range(time_val, 0, -1):
+                    print(f"   ⏳ {i}s", end="\r")
+                    await asyncio.sleep(1)
+                print("   " * 20, end="\r")
+                log(account_name, f"   ✅ Timer completato!")
+                
+                try:
+                    await new_page.close()
+                except:
+                    pass
+                
+                if cycle % 3 == 0:
+                    await page_no_proxy.goto(f"https://antautosurf.com/index.php?bitcoinwallet={email}&ref=", wait_until="networkidle", timeout=30000)
+                    await asyncio.sleep(2)
+                    html = await page_no_proxy.content()
+                    csrf_match = re.search(r'csrf_token=([a-f0-9]+)', html)
+                    if csrf_match:
+                        csrf = csrf_match.group(1)
+                        log(account_name, f"   🎫 CSRF aggiornato: {csrf[:16]}...")
+    
+    except Exception as e:
+        log(account_name, f"❌ Errore: {e}")
+        if "ERR_CONNECTION_RESET" in str(e) or "Timeout" in str(e) or "ERR_TUNNEL" in str(e):
+            await proxy_rotator.mark_bad(proxy_info['string'])
+
+# ============================================================
+# MAIN
+# ============================================================
+async def main():
+    print("=" * 60)
+    print("🚀 ANTPROXY MULTIACCOUNT - 200 PROXY")
+    print(f"🔇 Headless: {HEADLESS}")
+    print(f"🔄 Max concurrent: {MAX_CONCURRENT}")
+    print(f"📋 Account da creare: {NUM_ACCOUNTS}")
+    print(f"🌐 Proxy disponibili: {len(PROXY_LIST)}")
+    print("=" * 60)
+    
+    phash_db = carica_database()
+    print(f"📊 Database phash: {len(phash_db)} hash")
+    
+    # 🔥 PROXY ROTATOR
+    proxy_rotator = ProxyRotator(PROXY_LIST)
+    
+    # 🔥 GENERA ACCOUNT
+    accounts = []
+    print(f"📧 Generazione di {NUM_ACCOUNTS} account...")
+    for i in range(NUM_ACCOUNTS):
+        account = genera_account()
+        accounts.append(account)
+        print(f"   → {i+1}/{NUM_ACCOUNTS}: {account['email']} / {account['password']}")
+    
+    # 🔥 SALVA LE CREDENZIALI
+    if accounts:
+        salva_credenziali(accounts)
+    
+    print("\n" + "=" * 60)
+    print("🚀 AVVIO THREAD MULTI-ACCOUNT...")
+    print("=" * 60)
+    
+    try:
+        while True:
+            tasks = []
+            for account in accounts:
+                while len(tasks) >= MAX_CONCURRENT:
+                    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                    tasks = list(pending)
+                
+                account_name = account['email'].split('@')[0]
+                log(account_name, f"🔄 Avvio thread...")
+                task = asyncio.create_task(surf_account(account, proxy_rotator))
+                tasks.append(task)
+                await asyncio.sleep(2)
+            
+            if tasks:
+                await asyncio.gather(*tasks)
+            
+            # 🔥 STAMPA RIEPILOGO
+            print("\n" + "=" * 60)
+            print("📊 RIEPILOGO ACCOUNT")
+            print("=" * 60)
+            for acc in accounts:
+                status = "✅" if acc.get('created') else "⏳"
+                print(f"   {status} {acc['email']} → Balance: {acc.get('balance', 0)}")
+            print("=" * 60)
+            
+            log("MAIN", "⏳ Tutti i thread completati, attesa 30 secondi...")
+            await asyncio.sleep(30)
+    
+    except KeyboardInterrupt:
+        log("MAIN", "\n⏹️ Arresto...")
+        sys.exit(0)
+
+if __name__ == "__main__":
+    asyncio.run(main())
